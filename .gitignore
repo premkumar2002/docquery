@@ -1,0 +1,20 @@
+# Ignore node_modules folder
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore environment variable files
+.env
+
+# Ignore build directories
+dist/
+build/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+__pycache__/
+*.pyc
+venv/
