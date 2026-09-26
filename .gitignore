@@ -17,4 +17,5 @@ Thumbs.db
 
 __pycache__/
 *.pyc
-venv/test_ingest.py
+backend/venv/
+test_ingest.py
