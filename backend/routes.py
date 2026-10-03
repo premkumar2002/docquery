@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 
 from .rag_pipeline import ingest_pdf, query_documents
+from .metrics import CHUNKS_CREATED, DOCUMENT_UPLOADS, QUERIES, QUERY_LATENCY
 
 
 router = APIRouter()
@@ -46,7 +47,14 @@ async def upload_pdf(file: UploadFile):
             temp_file.write(contents)
 
         document_id = str(uuid4())
-        chunk_count = ingest_pdf(temp_path, document_id, file.filename)
+        try:
+            chunk_count = ingest_pdf(temp_path, document_id, file.filename)
+        except Exception:
+            DOCUMENT_UPLOADS.labels(status="error").inc()
+            raise
+
+        DOCUMENT_UPLOADS.labels(status="success").inc()
+        CHUNKS_CREATED.inc(chunk_count)
 
         return {
             "document_id": document_id,
@@ -61,8 +69,15 @@ async def upload_pdf(file: UploadFile):
 
 @router.post("/query", response_model=QueryResponse)
 def query_pdf(request: QueryRequest):
-    answer, sources = query_documents(
-        request.question,
-        str(request.document_id),
-    )
+    try:
+        with QUERY_LATENCY.time():
+            answer, sources = query_documents(
+                request.question,
+                str(request.document_id),
+            )
+    except Exception:
+        QUERIES.labels(status="error").inc()
+        raise
+
+    QUERIES.labels(status="success").inc()
     return QueryResponse(answer=answer, sources=sources)

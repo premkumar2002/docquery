@@ -19,6 +19,7 @@ The project is intentionally being built in production-oriented phases to demons
 - Responsive Tailwind CSS interface
 - Dockerfiles for the backend and production frontend image
 - Docker Compose stack for PostgreSQL, FastAPI, and the frontend
+- Prometheus metrics, request IDs, structured request logs, and a provisioned Grafana dashboard
 
 ## Architecture
 
@@ -65,7 +66,7 @@ docuquery/
 - **Phase 2 — Backend and RAG pipeline:** ✅ Complete — document-scoped retrieval and source citations included
 - **Phase 3 — Frontend MVP:** ✅ Complete
 - **Phase 4 — Containerization and local DevOps:** ✅ Initial Compose stack complete
-- **Phase 5 — Observability and monitoring:** Planned
+- **Phase 5 — Observability and monitoring:** ✅ Initial metrics and dashboard complete
 - **Phase 6 — CI/CD and deployment:** Planned
 
 ## Local Development
@@ -163,6 +164,12 @@ docker compose down
 
 Install Ollama and pull both models on the host before using the containerized backend.
 
+When running Compose, the observability tools are also available at:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (default local credentials: `admin` / `admin`)
+- Backend metrics: `http://localhost:8000/metrics`
+
 ## API
 
 | Endpoint | Method | Description |
@@ -200,6 +207,12 @@ The backend can be smoke-tested with:
 
 ```bash
 curl http://localhost:8000/health
+```
+
+Prometheus metrics can be checked with:
+
+```bash
+curl http://localhost:8000/metrics
 ```
 
 ## Production-Focused Roadmap
@@ -244,6 +257,8 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 **Skills demonstrated:** secure application design, authorization, threat modeling.
 
 ### 5. Observability
+
+✅ **Initial observability is complete.** The API exposes Prometheus metrics, request IDs, structured request logs, and a provisioned Grafana dashboard.
 
 - Add Prometheus metrics for upload count, chunk count, query latency, and failures.
 - Add structured JSON logs with request IDs.

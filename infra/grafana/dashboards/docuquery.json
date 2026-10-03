@@ -1,0 +1,50 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "title": "Query throughput",
+      "type": "timeseries",
+      "targets": [{"expr": "rate(docuquery_queries_total[5m])", "legendFormat": "{{status}}", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "title": "Query latency",
+      "type": "timeseries",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(docuquery_query_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "title": "Chunks created",
+      "type": "stat",
+      "targets": [{"expr": "docuquery_chunks_created_total", "legendFormat": "chunks", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "title": "Upload attempts",
+      "type": "stat",
+      "targets": [{"expr": "sum(docuquery_document_uploads_total)", "legendFormat": "uploads", "refId": "A"}]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["docuquery", "rag"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "DocuQuery Observability",
+  "uid": "docuquery-overview",
+  "version": 1
+}
