@@ -171,6 +171,13 @@ npm run lint
 npm run build
 ```
 
+Backend tests currently include API contract tests, upload validation tests, metadata tests, document filter tests, and empty-result behavior:
+
+```bash
+source backend/venv/bin/activate
+pytest -q
+```
+
 The backend can be smoke-tested with:
 
 ```bash
@@ -192,6 +199,8 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 **Skills demonstrated:** data modeling, multi-tenant boundaries, API design, trustworthy RAG.
 
 ### 2. Automated testing and evaluation
+
+✅ **Initial API and RAG contract tests are complete.** The remaining work is integration testing against a real pgvector service and adding a golden evaluation dataset.
 
 - Add `pytest` unit tests for chunking, validation, and API behavior.
 - Add integration tests with a temporary PostgreSQL/pgvector service.
