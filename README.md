@@ -20,6 +20,7 @@ The project is intentionally being built in production-oriented phases to demons
 - Dockerfiles for the backend and production frontend image
 - Docker Compose stack for PostgreSQL, FastAPI, and the frontend
 - Prometheus metrics, request IDs, structured request logs, and a provisioned Grafana dashboard
+- GitHub Actions CI for backend tests, frontend checks, container builds, and dependency audits
 
 ## Architecture
 
@@ -67,7 +68,7 @@ docuquery/
 - **Phase 3 — Frontend MVP:** ✅ Complete
 - **Phase 4 — Containerization and local DevOps:** ✅ Initial Compose stack complete
 - **Phase 5 — Observability and monitoring:** ✅ Initial metrics and dashboard complete
-- **Phase 6 — CI/CD and deployment:** Planned
+- **Phase 6 — CI/CD and deployment:** ✅ Initial GitHub Actions pipeline complete; cloud deployment planned
 
 ## Local Development
 
@@ -276,6 +277,8 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 **Skills demonstrated:** Docker, cloud deployment, networking, release engineering.
 
 ### 7. CI/CD and software supply chain
+
+✅ **Initial CI is complete.** GitHub Actions now runs backend tests, frontend lint/build checks, Compose validation, container builds, and dependency audits on pushes and pull requests.
 
 - Add GitHub Actions for linting, tests, frontend builds, and backend checks.
 - Build and scan container images, then publish them to GHCR.
