@@ -1,7 +1,8 @@
 import os
 from datetime import datetime, timezone
+from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, create_engine
+from sqlalchemy import DateTime, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -35,7 +36,9 @@ class DocumentRecord(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     owner_id: Mapped[str] = mapped_column(String(36), index=True)
     filename: Mapped[str] = mapped_column(String(255))
-    chunks_created: Mapped[int] = mapped_column(Integer)
+    chunks_created: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(32), default="processing", index=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

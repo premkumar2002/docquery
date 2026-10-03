@@ -18,6 +18,31 @@ async function uploadFile(file, token) {
     return response.json();
 }
 
+async function waitForDocument(documentId, token) {
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+        const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Could not read document status.");
+        }
+
+        if (data.status === "completed") {
+            return data;
+        }
+
+        if (data.status === "failed") {
+            throw new Error(data.error || "Document processing failed.");
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    throw new Error("Document processing timed out.");
+}
+
 export default function FileUpload({ onUploadSuccess, token }) {
     const [status, setStatus] = useState("idle");
     const [file, setFile] = useState(null);
@@ -58,7 +83,9 @@ export default function FileUpload({ onUploadSuccess, token }) {
 
         try {
             const result = await uploadFile(file, token);
-            setChunkCount(result.chunks_created);
+            setStatus("processing");
+            const completedDocument = await waitForDocument(result.document_id, token);
+            setChunkCount(completedDocument.chunks_created);
             onUploadSuccess(result.document_id);
             setStatus("success");
         } catch (error) {
@@ -84,17 +111,21 @@ export default function FileUpload({ onUploadSuccess, token }) {
                         type="file"
                         accept=".pdf,application/pdf"
                         onChange={handleFileChange}
-                        disabled={status === "uploading"}
+                        disabled={status === "uploading" || status === "processing"}
                         className="block w-full cursor-pointer rounded-lg border border-slate-700 bg-slate-950 text-sm text-slate-400 file:mr-4 file:cursor-pointer file:border-0 file:bg-slate-800 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-slate-200 hover:file:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                 </label>
                 <button
                     type="button"
                     onClick={handleUpload}
-                    disabled={status === "uploading" || !file}
+                    disabled={status === "uploading" || status === "processing" || !file}
                     className="rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
-                    {status === "uploading" ? "Uploading..." : "Upload PDF"}
+                    {status === "uploading"
+                        ? "Uploading..."
+                        : status === "processing"
+                            ? "Processing..."
+                            : "Upload PDF"}
                 </button>
             </div>
 
@@ -108,6 +139,11 @@ export default function FileUpload({ onUploadSuccess, token }) {
                 {status === "success" && chunkCount !== null && (
                     <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
                         Upload successful. Created {chunkCount} searchable chunks.
+                    </p>
+                )}
+                {status === "processing" && (
+                    <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-300">
+                        PDF uploaded. Creating searchable embeddings...
                     </p>
                 )}
                 {status === "error" && error && (

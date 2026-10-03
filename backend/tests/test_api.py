@@ -40,14 +40,12 @@ def test_upload_rejects_non_pdf():
 
 
 def test_upload_returns_document_id_and_chunk_count(monkeypatch):
-    def fake_ingest(file_path, document_id, filename, owner_id):
-        assert file_path.endswith(".pdf")
-        UUID(document_id)
-        assert filename == "resume.pdf"
-        assert owner_id == "test-user"
-        return 3
+    scheduled = {}
 
-    monkeypatch.setattr(routes, "ingest_pdf", fake_ingest)
+    def fake_process(file_path, document_id, owner_id, filename):
+        scheduled["job"] = (file_path, document_id, owner_id, filename)
+
+    monkeypatch.setattr(routes, "process_document", fake_process)
     monkeypatch.setattr(routes, "save_document", lambda *args: None)
 
     response = client.post(
@@ -59,7 +57,29 @@ def test_upload_returns_document_id_and_chunk_count(monkeypatch):
     payload = response.json()
     UUID(payload["document_id"])
     assert payload["filename"] == "resume.pdf"
-    assert payload["chunks_created"] == 3
+    assert payload["status"] == "processing"
+    assert payload["chunks_created"] == 0
+    assert scheduled["job"][2:] == ("test-user", "resume.pdf")
+
+
+def test_document_status_returns_processing_state(monkeypatch):
+    document_id = uuid4()
+    monkeypatch.setattr(
+        routes,
+        "find_owned_document",
+        lambda *args: SimpleNamespace(
+            id=str(document_id),
+            filename="resume.pdf",
+            status="processing",
+            chunks_created=0,
+            error=None,
+        ),
+    )
+
+    response = client.get(f"/documents/{document_id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "processing"
 
 
 def test_upload_rejects_invalid_pdf_signature(monkeypatch):
@@ -103,7 +123,7 @@ def test_query_returns_answer_and_sources(monkeypatch):
     monkeypatch.setattr(
         routes,
         "find_owned_document",
-        lambda *args: SimpleNamespace(id=str(document_id)),
+        lambda *args: SimpleNamespace(id=str(document_id), status="completed"),
     )
 
     response = client.post(

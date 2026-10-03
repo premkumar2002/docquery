@@ -18,6 +18,8 @@ The project is intentionally being built in production-oriented phases to demons
 - Client-side PDF validation, loading states, and user-facing errors
 - Server-side PDF signature, size, and question-length validation
 - Prompt-injection-aware RAG instructions that treat document text as untrusted
+- JWT authentication with Argon2 password hashing and PostgreSQL-backed ownership
+- Background PDF ingestion with processing status and failure reporting
 - Responsive Tailwind CSS interface
 - Dockerfiles for the backend and production frontend image
 - Docker Compose stack for PostgreSQL, FastAPI, and the frontend
@@ -152,6 +154,8 @@ npm run dev
 
 Open `http://localhost:5173`, upload a PDF, and ask a question about it.
 
+The first visit prompts you to create an account or sign in. PDF ingestion runs in the background; the UI waits for the document to reach `completed` before enabling questions.
+
 ### Docker Compose
 
 The Compose stack runs PostgreSQL/pgvector, the FastAPI backend, and the production frontend. The backend container connects to Ollama running on the host machine through `host.docker.internal`.
@@ -181,6 +185,7 @@ When running Compose, the observability tools are also available at:
 | `/health` | `GET` | Returns API health status |
 | `/upload` | `POST` | Accepts a PDF and returns a document ID and chunk count |
 | `/query` | `POST` | Retrieves document-scoped chunks and returns an answer with sources |
+| `/documents/{document_id}` | `GET` | Returns document processing status for the authenticated owner |
 | `/auth/register` | `POST` | Creates a user and returns a JWT |
 | `/auth/login` | `POST` | Authenticates a user and returns a JWT |
 
@@ -247,6 +252,8 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 **Skills demonstrated:** test strategy, integration testing, AI evaluation, regression prevention.
 
 ### 3. Async ingestion and production reliability
+
+✅ **Initial background processing is complete.** Uploads create a processing record, run ingestion after the response, expose status through `/documents/{document_id}`, and report failures to the UI.
 
 - Move PDF processing to a background job queue.
 - Add upload status endpoints: queued, processing, complete, failed.

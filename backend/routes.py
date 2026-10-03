@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 import tempfile
 import os
@@ -8,9 +8,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .rag_pipeline import ingest_pdf, query_documents
-from .metrics import CHUNKS_CREATED, DOCUMENT_UPLOADS, QUERIES, QUERY_LATENCY
+from .metrics import QUERIES, QUERY_LATENCY
 from .auth import authenticate_user, create_access_token, create_user, get_current_user
 from .database import DocumentRecord, User, get_db
+from .jobs import process_document
 
 
 router = APIRouter()
@@ -35,6 +36,21 @@ class AuthResponse(BaseModel):
     username: str
 
 
+class UploadResponse(BaseModel):
+    document_id: UUID
+    filename: str
+    status: str
+    chunks_created: int = 0
+
+
+class DocumentStatusResponse(BaseModel):
+    document_id: UUID
+    filename: str
+    status: str
+    chunks_created: int
+    error: Optional[str] = None
+
+
 class Source(BaseModel):
     filename: str
     page: Optional[int] = None
@@ -45,13 +61,14 @@ class QueryResponse(BaseModel):
     sources: list[Source]
 
 
-def save_document(db: Session, document_id: str, owner_id: str, filename: str, chunks_created: int) -> None:
+def save_document(db: Session, document_id: str, owner_id: str, filename: str) -> None:
     db.add(
         DocumentRecord(
             id=document_id,
             owner_id=owner_id,
             filename=filename,
-            chunks_created=chunks_created,
+            chunks_created=0,
+            status="processing",
         )
     )
     db.commit()
@@ -99,9 +116,10 @@ def login(credentials: Credentials, db: Session = Depends(get_db)):
 @router.post("/upload")
 async def upload_pdf(
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> UploadResponse:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400,
@@ -140,30 +158,45 @@ async def upload_pdf(
                 raise HTTPException(status_code=400, detail="The uploaded PDF is empty.")
 
         document_id = str(uuid4())
-        try:
-            chunk_count = ingest_pdf(
-                temp_path,
-                document_id,
-                file.filename,
-                current_user.id,
-            )
-        except Exception:
-            DOCUMENT_UPLOADS.labels(status="error").inc()
-            raise
-
-        DOCUMENT_UPLOADS.labels(status="success").inc()
-        CHUNKS_CREATED.inc(chunk_count)
-        save_document(db, document_id, current_user.id, file.filename, chunk_count)
+        save_document(db, document_id, current_user.id, file.filename)
+        background_tasks.add_task(
+            process_document,
+            temp_path,
+            document_id,
+            current_user.id,
+            file.filename,
+        )
+        temp_path = None
 
         return {
             "document_id": document_id,
             "filename": file.filename,
-            "chunks_created": chunk_count,
+            "status": "processing",
+            "chunks_created": 0,
         }
 
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+@router.get("/documents/{document_id}", response_model=DocumentStatusResponse)
+def document_status(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    document = find_owned_document(db, str(document_id), current_user.id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    return DocumentStatusResponse(
+        document_id=document.id,
+        filename=document.filename,
+        status=document.status,
+        chunks_created=document.chunks_created,
+        error=document.error,
+    )
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -173,8 +206,14 @@ def query_pdf(
     db: Session = Depends(get_db),
 ):
     document_id = str(request.document_id)
-    if not find_owned_document(db, document_id, current_user.id):
+    document = find_owned_document(db, document_id, current_user.id)
+    if not document:
         raise HTTPException(status_code=404, detail="Document not found.")
+
+    if document.status == "processing":
+        raise HTTPException(status_code=409, detail="Document is still processing.")
+    if document.status == "failed":
+        raise HTTPException(status_code=422, detail=document.error or "Document processing failed.")
 
     try:
         with QUERY_LATENCY.time():
