@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, Text, create_engine
+from sqlalchemy import DateTime, Integer, String, Text, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -47,6 +47,24 @@ class DocumentRecord(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+
+    existing_columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("documents")
+    }
+
+    with engine.begin() as connection:
+        if "status" not in existing_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE documents "
+                    "ADD COLUMN status VARCHAR(32) NOT NULL DEFAULT 'completed'"
+                )
+            )
+        if "error" not in existing_columns:
+            connection.execute(
+                text("ALTER TABLE documents ADD COLUMN error TEXT NULL")
+            )
 
 
 def get_db():
