@@ -11,3 +11,6 @@ python-multipart
 prometheus-fastapi-instrumentator
 python-dotenv
 pytest
+SQLAlchemy
+PyJWT
+pwdlib[argon2]

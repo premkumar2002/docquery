@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function QueryBox({ documentId }) {
+export default function QueryBox({ documentId, token }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("idle");
@@ -23,6 +23,7 @@ export default function QueryBox({ documentId }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           question: cleanedQuestion,

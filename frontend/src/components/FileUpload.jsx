@@ -1,11 +1,12 @@
 import { useState } from "react";
 
-async function uploadFile(file) {
+async function uploadFile(file, token) {
     const formData = new FormData();
     formData.append("file", file);
 
     const response = await fetch("http://localhost:8000/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
     });
 
@@ -17,7 +18,7 @@ async function uploadFile(file) {
     return response.json();
 }
 
-export default function FileUpload({ onUploadSuccess }) {
+export default function FileUpload({ onUploadSuccess, token }) {
     const [status, setStatus] = useState("idle");
     const [file, setFile] = useState(null);
     const [chunkCount, setChunkCount] = useState(null);
@@ -56,7 +57,7 @@ export default function FileUpload({ onUploadSuccess }) {
         setError("");
 
         try {
-            const result = await uploadFile(file);
+            const result = await uploadFile(file, token);
             setChunkCount(result.chunks_created);
             onUploadSuccess(result.document_id);
             setStatus("success");

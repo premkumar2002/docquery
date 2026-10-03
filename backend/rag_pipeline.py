@@ -53,7 +53,7 @@ def chunk_pdf(file_path: str) -> list[Document]:
     return splitter.split_documents(pages)
 
 
-def ingest_pdf(file_path: str, document_id: str, filename: str) -> int:
+def ingest_pdf(file_path: str, document_id: str, filename: str, owner_id: str) -> int:
     chunks = chunk_pdf(file_path)
 
     for chunk in chunks:
@@ -61,6 +61,7 @@ def ingest_pdf(file_path: str, document_id: str, filename: str) -> int:
         chunk.metadata.update(
             {
                 "document_id": document_id,
+                "owner_id": owner_id,
                 "filename": filename,
                 "page_number": page_number,
                 "source": filename,
@@ -70,11 +71,16 @@ def ingest_pdf(file_path: str, document_id: str, filename: str) -> int:
     vector_store.add_documents(chunks)
     return len(chunks)
 
-def query_documents(question: str, document_id: str, k: int = 4) -> tuple[str, list[dict]]:
+def query_documents(
+    question: str,
+    document_id: str,
+    owner_id: str,
+    k: int = 4,
+) -> tuple[str, list[dict]]:
     documents = vector_store.similarity_search(
         question,
         k=k,
-        filter={"document_id": document_id},
+        filter={"document_id": document_id, "owner_id": owner_id},
     )
 
     if not documents:

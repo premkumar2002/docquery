@@ -1,12 +1,32 @@
 from uuid import UUID, uuid4
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from backend.main import app
+from backend.auth import create_access_token, get_current_user, hash_password, verify_password
+from backend.database import get_db
 import backend.routes as routes
 
 
 client = TestClient(app)
+
+
+class FakeDB:
+    pass
+
+
+app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="test-user")
+app.dependency_overrides[get_db] = lambda: FakeDB()
+
+
+def test_password_hashing_and_tokens():
+    hashed_password = hash_password("correct horse battery staple")
+
+    assert hashed_password != "correct horse battery staple"
+    assert verify_password("correct horse battery staple", hashed_password)
+    assert not verify_password("wrong password", hashed_password)
+    assert create_access_token("user-123")
 
 
 def test_upload_rejects_non_pdf():
@@ -20,13 +40,15 @@ def test_upload_rejects_non_pdf():
 
 
 def test_upload_returns_document_id_and_chunk_count(monkeypatch):
-    def fake_ingest(file_path, document_id, filename):
+    def fake_ingest(file_path, document_id, filename, owner_id):
         assert file_path.endswith(".pdf")
         UUID(document_id)
         assert filename == "resume.pdf"
+        assert owner_id == "test-user"
         return 3
 
     monkeypatch.setattr(routes, "ingest_pdf", fake_ingest)
+    monkeypatch.setattr(routes, "save_document", lambda *args: None)
 
     response = client.post(
         "/upload",
@@ -68,15 +90,21 @@ def test_query_requires_document_id():
 def test_query_returns_answer_and_sources(monkeypatch):
     document_id = uuid4()
 
-    def fake_query(question, requested_document_id):
+    def fake_query(question, requested_document_id, owner_id):
         assert question == "What experience is listed?"
         assert requested_document_id == str(document_id)
+        assert owner_id == "test-user"
         return (
             "The document lists cloud engineering experience.",
             [{"filename": "resume.pdf", "page": 2}],
         )
 
     monkeypatch.setattr(routes, "query_documents", fake_query)
+    monkeypatch.setattr(
+        routes,
+        "find_owned_document",
+        lambda *args: SimpleNamespace(id=str(document_id)),
+    )
 
     response = client.post(
         "/query",

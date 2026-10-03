@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -8,12 +9,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from backend.routes import router
+from backend.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    init_db()
+    yield
 
 
 app = FastAPI(
     title="DocuQuery API",
     description="Document ingestion and grounded question answering API.",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -65,6 +74,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(router)
 Instrumentator().instrument(app).expose(app)

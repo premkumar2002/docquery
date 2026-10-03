@@ -1,12 +1,16 @@
-from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 import tempfile
 import os
 from uuid import UUID, uuid4
 from typing import Optional
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from .rag_pipeline import ingest_pdf, query_documents
 from .metrics import CHUNKS_CREATED, DOCUMENT_UPLOADS, QUERIES, QUERY_LATENCY
+from .auth import authenticate_user, create_access_token, create_user, get_current_user
+from .database import DocumentRecord, User, get_db
 
 
 router = APIRouter()
@@ -19,6 +23,18 @@ class QueryRequest(BaseModel):
     document_id: UUID
 
 
+class Credentials(BaseModel):
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9_.-]+$")
+    password: str = Field(min_length=8, max_length=128)
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: str
+    username: str
+
+
 class Source(BaseModel):
     filename: str
     page: Optional[int] = None
@@ -29,8 +45,63 @@ class QueryResponse(BaseModel):
     sources: list[Source]
 
 
+def save_document(db: Session, document_id: str, owner_id: str, filename: str, chunks_created: int) -> None:
+    db.add(
+        DocumentRecord(
+            id=document_id,
+            owner_id=owner_id,
+            filename=filename,
+            chunks_created=chunks_created,
+        )
+    )
+    db.commit()
+
+
+def find_owned_document(db: Session, document_id: str, owner_id: str) -> Optional[DocumentRecord]:
+    return (
+        db.query(DocumentRecord)
+        .filter(
+            DocumentRecord.id == document_id,
+            DocumentRecord.owner_id == owner_id,
+        )
+        .first()
+    )
+
+
+@router.post("/auth/register", response_model=AuthResponse, status_code=201)
+def register(credentials: Credentials, db: Session = Depends(get_db)):
+    try:
+        user = create_user(db, credentials.username, credentials.password)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Username already exists.") from exc
+
+    return AuthResponse(
+        access_token=create_access_token(user.id),
+        user_id=user.id,
+        username=user.username,
+    )
+
+
+@router.post("/auth/login", response_model=AuthResponse)
+def login(credentials: Credentials, db: Session = Depends(get_db)):
+    user = authenticate_user(db, credentials.username, credentials.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+
+    return AuthResponse(
+        access_token=create_access_token(user.id),
+        user_id=user.id,
+        username=user.username,
+    )
+
+
 @router.post("/upload")
-async def upload_pdf(file: UploadFile):
+async def upload_pdf(
+    file: UploadFile,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400,
@@ -70,13 +141,19 @@ async def upload_pdf(file: UploadFile):
 
         document_id = str(uuid4())
         try:
-            chunk_count = ingest_pdf(temp_path, document_id, file.filename)
+            chunk_count = ingest_pdf(
+                temp_path,
+                document_id,
+                file.filename,
+                current_user.id,
+            )
         except Exception:
             DOCUMENT_UPLOADS.labels(status="error").inc()
             raise
 
         DOCUMENT_UPLOADS.labels(status="success").inc()
         CHUNKS_CREATED.inc(chunk_count)
+        save_document(db, document_id, current_user.id, file.filename, chunk_count)
 
         return {
             "document_id": document_id,
@@ -90,12 +167,21 @@ async def upload_pdf(file: UploadFile):
 
 
 @router.post("/query", response_model=QueryResponse)
-def query_pdf(request: QueryRequest):
+def query_pdf(
+    request: QueryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    document_id = str(request.document_id)
+    if not find_owned_document(db, document_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Document not found.")
+
     try:
         with QUERY_LATENCY.time():
             answer, sources = query_documents(
                 request.question,
-                str(request.document_id),
+                document_id,
+                current_user.id,
             )
     except Exception:
         QUERIES.labels(status="error").inc()

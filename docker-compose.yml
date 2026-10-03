@@ -22,6 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://docuquery:devpassword@db:5432/docuquery
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-please-32-bytes}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

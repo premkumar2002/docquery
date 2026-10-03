@@ -93,6 +93,7 @@ Create `backend/.env` with values appropriate for your local environment:
 ```dotenv
 DATABASE_URL=postgresql+psycopg://docuquery:devpassword@localhost:5432/docuquery
 OLLAMA_BASE_URL=http://localhost:11434
+JWT_SECRET=replace-this-with-a-long-random-secret
 ```
 
 Do not commit `.env` files or real credentials.
@@ -180,6 +181,8 @@ When running Compose, the observability tools are also available at:
 | `/health` | `GET` | Returns API health status |
 | `/upload` | `POST` | Accepts a PDF and returns a document ID and chunk count |
 | `/query` | `POST` | Retrieves document-scoped chunks and returns an answer with sources |
+| `/auth/register` | `POST` | Creates a user and returns a JWT |
+| `/auth/login` | `POST` | Authenticates a user and returns a JWT |
 
 Example query request:
 
@@ -253,9 +256,9 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 
 ### 4. Authentication and security
 
-✅ **Initial input-safety controls are complete.** Uploads are streamed with a size limit, PDF signatures are checked, question length is bounded, and document content is treated as untrusted by the prompt. Authentication and persistent ownership are the next security milestone.
+✅ **Authentication and initial input-safety controls are complete.** Users receive JWTs, documents are owned by the authenticated user, uploads are streamed with a size limit, PDF signatures are checked, question length is bounded, and document content is treated as untrusted by the prompt.
 
-- Add user authentication and ownership checks for documents.
+- Add refresh tokens, account recovery, and production secret-manager integration.
 - Store secrets through environment or secret-manager configuration.
 - Add rate limiting, input validation, audit logging, and prompt-injection defenses.
 
