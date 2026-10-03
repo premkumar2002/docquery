@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import './App.css'
 import FileUpload from './components/FileUpload'
 import QueryBox from './components/QueryBox'
 
 
 function App() {
+  const [documentId, setDocumentId] = useState(null)
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
@@ -20,8 +22,8 @@ function App() {
           </p>
         </header>
 
-        <FileUpload />
-        <QueryBox />
+        <FileUpload onUploadSuccess={setDocumentId} />
+        <QueryBox documentId={documentId} />
       </main>
     </div>
   )

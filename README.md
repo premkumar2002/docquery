@@ -11,6 +11,8 @@ The project is intentionally being built in production-oriented phases to demons
 - Local embeddings with Ollama's `nomic-embed-text`
 - Vector similarity search with PostgreSQL and pgvector
 - Grounded question answering with Ollama's `llama3.2`
+- Document-scoped retrieval to prevent cross-document answers
+- Source references with filenames and page numbers
 - FastAPI `/upload`, `/query`, and `/health` endpoints
 - Chat-style question and answer history in the frontend
 - Client-side PDF validation, loading states, and user-facing errors
@@ -58,7 +60,7 @@ docuquery/
 ## Project Status
 
 - **Phase 1 — Project setup:** ✅ Complete
-- **Phase 2 — Backend and RAG pipeline:** ✅ Complete
+- **Phase 2 — Backend and RAG pipeline:** ✅ Complete — document-scoped retrieval and source citations included
 - **Phase 3 — Frontend MVP:** ✅ Complete
 - **Phase 4 — Containerization and local DevOps:** Planned
 - **Phase 5 — Observability and monitoring:** Planned
@@ -148,8 +150,8 @@ Open `http://localhost:5173`, upload a PDF, and ask a question about it.
 | Endpoint | Method | Description |
 |---|---|---|
 | `/health` | `GET` | Returns API health status |
-| `/upload` | `POST` | Accepts a PDF and returns the created chunk count |
-| `/query` | `POST` | Retrieves relevant chunks and returns a grounded answer |
+| `/upload` | `POST` | Accepts a PDF and returns a document ID and chunk count |
+| `/query` | `POST` | Retrieves document-scoped chunks and returns an answer with sources |
 
 Example query request:
 
@@ -180,6 +182,8 @@ curl http://localhost:8000/health
 The following milestones are ordered to turn the MVP into a stronger portfolio project and demonstrate skills commonly requested for backend, platform, and AI engineering roles.
 
 ### 1. Document isolation and metadata
+
+✅ **Complete in the current MVP.** Each upload receives a document ID, chunks carry filename/page metadata, and query responses include source references.
 
 - Give every upload a document ID and persist document metadata.
 - Scope retrieval to a selected document or workspace instead of one shared collection.

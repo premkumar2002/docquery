@@ -17,7 +17,7 @@ async function uploadFile(file) {
     return response.json();
 }
 
-export default function FileUpload() {
+export default function FileUpload({ onUploadSuccess }) {
     const [status, setStatus] = useState("idle");
     const [file, setFile] = useState(null);
     const [chunkCount, setChunkCount] = useState(null);
@@ -58,6 +58,7 @@ export default function FileUpload() {
         try {
             const result = await uploadFile(file);
             setChunkCount(result.chunks_created);
+            onUploadSuccess(result.document_id);
             setStatus("success");
         } catch (error) {
             console.error(error);

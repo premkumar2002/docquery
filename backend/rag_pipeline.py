@@ -51,16 +51,40 @@ def chunk_pdf(file_path: str) -> list[Document]:
     return splitter.split_documents(pages)
 
 
-def ingest_pdf(file_path: str) -> int:
+def ingest_pdf(file_path: str, document_id: str, filename: str) -> int:
     chunks = chunk_pdf(file_path)
+
+    for chunk in chunks:
+        page_number = chunk.metadata.get("page", 0) + 1
+        chunk.metadata.update(
+            {
+                "document_id": document_id,
+                "filename": filename,
+                "page_number": page_number,
+                "source": filename,
+            }
+        )
+
     vector_store.add_documents(chunks)
     return len(chunks)
 
-def query_documents(question: str, k: int = 4) -> str:
-    documents = vector_store.similarity_search(question, k=k)
+def query_documents(question: str, document_id: str, k: int = 4) -> tuple[str, list[dict]]:
+    documents = vector_store.similarity_search(
+        question,
+        k=k,
+        filter={"document_id": document_id},
+    )
+
+    if not documents:
+        return "I don't know based on the uploaded document.", []
 
     context = "\n\n".join(
-        document.page_content for document in documents
+        (
+            f"[Source: {document.metadata.get('filename', 'unknown')}, "
+            f"page {document.metadata.get('page_number', 'unknown')}]\n"
+            f"{document.page_content}"
+        )
+        for document in documents
     )
 
     chain = prompt | llm
@@ -72,4 +96,17 @@ def query_documents(question: str, k: int = 4) -> str:
         }
     )
 
-    return response.content
+    source_items = []
+    seen_sources = set()
+
+    for document in documents:
+        source = {
+            "filename": document.metadata.get("filename", "unknown"),
+            "page": document.metadata.get("page_number"),
+        }
+        source_key = (source["filename"], source["page"])
+        if source_key not in seen_sources:
+            source_items.append(source)
+            seen_sources.add(source_key)
+
+    return response.content, source_items

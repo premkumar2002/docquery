@@ -4,7 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes import router
 
 
-app = FastAPI()
+app = FastAPI(
+    title="DocuQuery API",
+    description="Document ingestion and grounded question answering API.",
+    version="0.2.0",
+)
 
 app.add_middleware(
     CORSMiddleware,

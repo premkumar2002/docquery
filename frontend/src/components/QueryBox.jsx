@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function QueryBox() {
+export default function QueryBox({ documentId }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("idle");
@@ -24,7 +24,10 @@ export default function QueryBox() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: cleanedQuestion }),
+        body: JSON.stringify({
+          question: cleanedQuestion,
+          document_id: documentId,
+        }),
       });
 
       if (!response.ok) {
@@ -37,6 +40,7 @@ export default function QueryBox() {
         {
           question: cleanedQuestion,
           answer: data.answer,
+          sources: data.sources,
         },
       ]);
       setQuestion("");
@@ -62,17 +66,21 @@ export default function QueryBox() {
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           placeholder="What experience does this person have?"
-          disabled={status === "loading"}
+          disabled={!documentId || status === "loading"}
           rows={3}
           className="block w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         />
 
         <button
           type="submit"
-          disabled={status === "loading"}
+          disabled={!documentId || status === "loading"}
           className="rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
         >
-          {status === "loading" ? "Searching..." : "Ask question"}
+          {!documentId
+            ? "Upload a PDF first"
+            : status === "loading"
+              ? "Searching..."
+              : "Ask question"}
         </button>
       </form>
 
@@ -86,6 +94,18 @@ export default function QueryBox() {
             <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-slate-700 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-200">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">DocuQuery</p>
               <p className="whitespace-pre-wrap">{message.answer}</p>
+              {message.sources?.length > 0 && (
+                <div className="mt-3 border-t border-slate-800 pt-3 text-xs text-slate-400">
+                  <p className="mb-1 font-semibold text-slate-300">Sources</p>
+                  <ul className="space-y-1">
+                    {message.sources.map((source, sourceIndex) => (
+                      <li key={`${source.filename}-${source.page}-${sourceIndex}`}>
+                        {source.filename} · page {source.page ?? "unknown"}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         ))}
