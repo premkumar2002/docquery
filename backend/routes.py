@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import tempfile
 import os
 from uuid import UUID, uuid4
@@ -10,10 +10,12 @@ from .metrics import CHUNKS_CREATED, DOCUMENT_UPLOADS, QUERIES, QUERY_LATENCY
 
 
 router = APIRouter()
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", 10 * 1024 * 1024))
+UPLOAD_READ_SIZE = 1024 * 1024
 
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=2000)
     document_id: UUID
 
 
@@ -43,8 +45,28 @@ async def upload_pdf(file: UploadFile):
             delete=False,
         ) as temp_file:
             temp_path = temp_file.name
-            contents = await file.read()
-            temp_file.write(contents)
+            total_bytes = 0
+            first_chunk = True
+
+            while contents := await file.read(UPLOAD_READ_SIZE):
+                total_bytes += len(contents)
+                if total_bytes > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"PDF must be smaller than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+                    )
+
+                if first_chunk and not contents.startswith(b"%PDF-"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="The uploaded file is not a valid PDF.",
+                    )
+
+                first_chunk = False
+                temp_file.write(contents)
+
+            if total_bytes == 0:
+                raise HTTPException(status_code=400, detail="The uploaded PDF is empty.")
 
         document_id = str(uuid4())
         try:

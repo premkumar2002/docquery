@@ -16,6 +16,8 @@ The project is intentionally being built in production-oriented phases to demons
 - FastAPI `/upload`, `/query`, and `/health` endpoints
 - Chat-style question and answer history in the frontend
 - Client-side PDF validation, loading states, and user-facing errors
+- Server-side PDF signature, size, and question-length validation
+- Prompt-injection-aware RAG instructions that treat document text as untrusted
 - Responsive Tailwind CSS interface
 - Dockerfiles for the backend and production frontend image
 - Docker Compose stack for PostgreSQL, FastAPI, and the frontend
@@ -250,6 +252,8 @@ The following milestones are ordered to turn the MVP into a stronger portfolio p
 **Skills demonstrated:** asynchronous systems, resilience, API contracts, operational thinking.
 
 ### 4. Authentication and security
+
+✅ **Initial input-safety controls are complete.** Uploads are streamed with a size limit, PDF signatures are checked, question length is bounded, and document content is treated as untrusted by the prompt. Authentication and persistent ownership are the next security milestone.
 
 - Add user authentication and ownership checks for documents.
 - Store secrets through environment or secret-manager configuration.

@@ -30,7 +30,7 @@ def test_upload_returns_document_id_and_chunk_count(monkeypatch):
 
     response = client.post(
         "/upload",
-        files={"file": ("resume.pdf", b"fake pdf", "application/pdf")},
+        files={"file": ("resume.pdf", b"%PDF-1.7 fake pdf", "application/pdf")},
     )
 
     assert response.status_code == 200
@@ -38,6 +38,25 @@ def test_upload_returns_document_id_and_chunk_count(monkeypatch):
     UUID(payload["document_id"])
     assert payload["filename"] == "resume.pdf"
     assert payload["chunks_created"] == 3
+
+
+def test_upload_rejects_invalid_pdf_signature(monkeypatch):
+    response = client.post(
+        "/upload",
+        files={"file": ("resume.pdf", b"not actually a pdf", "application/pdf")},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "The uploaded file is not a valid PDF."}
+
+
+def test_query_rejects_questions_over_maximum_length():
+    response = client.post(
+        "/query",
+        json={"question": "x" * 2001, "document_id": str(uuid4())},
+    )
+
+    assert response.status_code == 422
 
 
 def test_query_requires_document_id():
