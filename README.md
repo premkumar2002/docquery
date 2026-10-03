@@ -17,6 +17,8 @@ The project is intentionally being built in production-oriented phases to demons
 - Chat-style question and answer history in the frontend
 - Client-side PDF validation, loading states, and user-facing errors
 - Responsive Tailwind CSS interface
+- Dockerfiles for the backend and production frontend image
+- Docker Compose stack for PostgreSQL, FastAPI, and the frontend
 
 ## Architecture
 
@@ -62,7 +64,7 @@ docuquery/
 - **Phase 1 — Project setup:** ✅ Complete
 - **Phase 2 — Backend and RAG pipeline:** ✅ Complete — document-scoped retrieval and source citations included
 - **Phase 3 — Frontend MVP:** ✅ Complete
-- **Phase 4 — Containerization and local DevOps:** Planned
+- **Phase 4 — Containerization and local DevOps:** ✅ Initial Compose stack complete
 - **Phase 5 — Observability and monitoring:** Planned
 - **Phase 6 — CI/CD and deployment:** Planned
 
@@ -144,6 +146,22 @@ npm run dev
 ```
 
 Open `http://localhost:5173`, upload a PDF, and ask a question about it.
+
+### Docker Compose
+
+The Compose stack runs PostgreSQL/pgvector, the FastAPI backend, and the production frontend. The backend container connects to Ollama running on the host machine through `host.docker.internal`.
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5173`. Stop the stack with `Ctrl+C`, or run:
+
+```bash
+docker compose down
+```
+
+Install Ollama and pull both models on the host before using the containerized backend.
 
 ## API
 
