@@ -19,12 +19,13 @@ def test_ingest_adds_document_and_page_metadata(monkeypatch):
     monkeypatch.setattr(rag_pipeline, "chunk_pdf", lambda file_path: documents)
     monkeypatch.setattr(rag_pipeline, "vector_store", FakeVectorStore())
 
-    count = rag_pipeline.ingest_pdf("document.pdf", "doc-123", "resume.pdf")
+    count = rag_pipeline.ingest_pdf("document.pdf", "doc-123", "resume.pdf", "user-123")
 
     assert count == 2
     assert captured["documents"][0].metadata == {
         "page": 0,
         "document_id": "doc-123",
+        "owner_id": "user-123",
         "filename": "resume.pdf",
         "page_number": 1,
         "source": "resume.pdf",
@@ -66,13 +67,17 @@ def test_query_filters_by_document_and_deduplicates_sources(monkeypatch):
     monkeypatch.setattr(rag_pipeline, "prompt", FakePrompt())
     monkeypatch.setattr(rag_pipeline, "llm", object())
 
-    answer, sources = rag_pipeline.query_documents("Where did they work?", "doc-123")
+    answer, sources = rag_pipeline.query_documents(
+        "Where did they work?",
+        "doc-123",
+        "user-123",
+    )
 
     assert answer == "Grounded answer"
     assert captured["arguments"] == (
         "Where did they work?",
         4,
-        {"document_id": "doc-123"},
+        {"document_id": "doc-123", "owner_id": "user-123"},
     )
     assert "[Source: resume.pdf, page 2]" in captured["prompt_values"]["context"]
     assert sources == [
@@ -88,7 +93,11 @@ def test_query_returns_unknown_when_no_document_chunks(monkeypatch):
 
     monkeypatch.setattr(rag_pipeline, "vector_store", EmptyVectorStore())
 
-    answer, sources = rag_pipeline.query_documents("Unknown?", "missing-document")
+    answer, sources = rag_pipeline.query_documents(
+        "Unknown?",
+        "missing-document",
+        "user-123",
+    )
 
     assert answer == "I don't know based on the uploaded document."
     assert sources == []
