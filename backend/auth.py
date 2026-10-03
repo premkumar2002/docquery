@@ -16,6 +16,8 @@ JWT_SECRET = os.getenv(
     "JWT_SECRET",
     "dev-only-change-this-secret-please-32-bytes",
 )
+if os.getenv("ENVIRONMENT", "development") == "production" and JWT_SECRET.startswith("dev-only"):
+    raise RuntimeError("JWT_SECRET must be set to a strong value in production")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "60"))
 

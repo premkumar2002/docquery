@@ -53,7 +53,7 @@ def test_upload_returns_document_id_and_chunk_count(monkeypatch):
         files={"file": ("resume.pdf", b"%PDF-1.7 fake pdf", "application/pdf")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     payload = response.json()
     UUID(payload["document_id"])
     assert payload["filename"] == "resume.pdf"

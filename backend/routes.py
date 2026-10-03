@@ -113,7 +113,7 @@ def login(credentials: Credentials, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=UploadResponse, status_code=202)
 async def upload_pdf(
     file: UploadFile,
     background_tasks: BackgroundTasks,
